@@ -73,6 +73,7 @@ To take advantage of `azd` alpha features for **[Helm](https://helm.sh)** or **[
 azd config set alpha.aks.helm on
 ```
 
+
 **Enable support for Kustomize**
 ```bash
 azd config set alpha.aks.kustomize on
