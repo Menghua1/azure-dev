@@ -213,7 +213,7 @@ func (e *envSetSecretAction) Run(ctx context.Context) (*actions.ActionResult, er
 	listWithoutNumbers := !e.console.IsSpinnerInteractive()
 
 	createNewStrategy := "Create a new Key Vault secret111111111111"
-	selectExistingStrategy := "Select an existing Key Vault secret"
+	selectExistingStrategy := "Select an existing Key Vault secret1111111111111111"
 	setSecretStrategies := []string{createNewStrategy, selectExistingStrategy}
 	selectedStrategyIndex, err := e.console.Select(
 		ctx,
