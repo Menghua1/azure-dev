@@ -212,7 +212,7 @@ func (e *envSetSecretAction) Run(ctx context.Context) (*actions.ActionResult, er
 	// when the user wants to prefill the selection in stdin before calling azd env set-secret (e.g. in a script).
 	listWithoutNumbers := !e.console.IsSpinnerInteractive()
 
-	createNewStrategy := "Create a new Key Vault secret"
+	createNewStrategy := "Create a new Key Vault secret111111111111"
 	selectExistingStrategy := "Select an existing Key Vault secret"
 	setSecretStrategies := []string{createNewStrategy, selectExistingStrategy}
 	selectedStrategyIndex, err := e.console.Select(
