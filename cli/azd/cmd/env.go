@@ -222,7 +222,7 @@ func (e *envSetSecretAction) Run(ctx context.Context) (*actions.ActionResult, er
 			Options:      setSecretStrategies,
 			DefaultValue: createNewStrategy,
 			Help: "When creating a new Key Vault secret, you can either create a new Key Vault or" +
-				" pick an existing one. A Key Vault secret belongs to a Key Vault.",
+				" pick an existing111111111111 one. A Key Vault secret belongs to a Key Vault.",
 		})
 	if err != nil {
 		return nil, fmt.Errorf("selecting secret setting strategy: %w", err)
