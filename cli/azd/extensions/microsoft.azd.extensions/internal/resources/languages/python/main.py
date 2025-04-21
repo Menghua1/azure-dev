@@ -1,0 +1,43 @@
+import asyncio  
+from azd_client import AzdClient  
+from commands.context_command import ContextCommand  
+from commands.listen_command import ListenCommand  
+from commands.prompt_command import PromptCommand  
+import argparse  
+  
+def main():  
+    parser = argparse.ArgumentParser(description="Azure DevOps Extension")  
+    subparsers = parser.add_subparsers(dest="command", required=True)  
+  
+    # Create subcommands  
+    subparsers.add_parser("context", help="Get the context of the AZD project & environment")  
+    subparsers.add_parser("listen", help="Starts the extension and listens for events")  
+    subparsers.add_parser("prompt", help="Examples of prompting the user for input")  
+  
+    args = parser.parse_args()  
+  
+    # Retrieve environment variables for server address and access token  
+    server_address = os.getenv("AZD_SERVER")  
+    access_token = os.getenv("AZD_ACCESS_TOKEN")  
+  
+    if not server_address or not access_token:  
+        print("Server address and access token must be set in environment variables AZD_SERVER and AZD_ACCESS_TOKEN.")  
+        return  
+  
+    azd_client = AzdClient(server_address, access_token)  
+  
+    # Execute the appropriate command  
+    if args.command == "context":  
+        command = ContextCommand(azd_client)  
+        asyncio.run(command.execute())  
+    elif args.command == "listen":  
+        command = ListenCommand(azd_client)  
+        asyncio.run(command.execute())  
+    elif args.command == "prompt":  
+        command = PromptCommand(azd_client)  
+        asyncio.run(command.execute())  
+  
+    azd_client.close()  
+  
+if __name__ == "__main__":  
+    main()  
