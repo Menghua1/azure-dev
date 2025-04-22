@@ -98,6 +98,9 @@ foreach ($PLATFORM in $PLATFORMS) {
     } elseif ($env:EXTENSION_LANGUAGE -eq "python") {
         $PYTHON_MAIN_FILE = "main.py"
 
+        Write-Host "Installing Python dependencies..."
+        pip install -r requirements.txt
+
         $PYINSTALLER_NAME = "$EXTENSION_ID_SAFE-$OS-$ARCH"
         if ($OS -eq "windows") {
             $PYINSTALLER_NAME += ".exe"
@@ -106,10 +109,7 @@ foreach ($PLATFORM in $PLATFORMS) {
         Write-Host "Running PyInstaller for $OS/$ARCH..."
         python -m PyInstaller `
             --onefile `
-            --collect-submodules grpc_interceptor `
-            --collect-submodules=azure.identity `
-            --collect-submodules=azure.mgmt.resource `
-            --collect-submodules=rich.console `
+            --add-data "generated_proto:generated_proto" `
             --distpath $OUTPUT_DIR `
             --name $PYINSTALLER_NAME `
             $PYTHON_MAIN_FILE

@@ -1,5 +1,8 @@
 import asyncio  
-from event_manager import EventManager  
+from event_manager import EventManager
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from azd_client import AzdClient  
   
 class ListenCommand:  

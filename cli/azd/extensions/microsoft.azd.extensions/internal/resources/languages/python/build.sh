@@ -94,16 +94,17 @@ for PLATFORM in "${PLATFORMS[@]}"; do
         fi
     elif [ "$EXTENSION_LANGUAGE" = "python" ]; then
         PYTHON_MAIN_FILE="main.py"
+
+        Write-Host "Installing Python dependencies..."
+        pip install -r requirements.txt
+        
         PYINSTALLER_NAME="$EXTENSION_ID_SAFE-$OS-$ARCH"
         [ "$OS" = "windows" ] && PYINSTALLER_NAME+='.exe'
 
         echo "Running PyInstaller for $OS/$ARCH..."
         python -m PyInstaller \
             --onefile \
-            --collect-submodules grpc_interceptor \
-            --collect-submodules azure.identity \
-            --collect-submodules azure.mgmt.resource \
-            --collect-submodules rich.console \
+            --add-data "generated_proto:generated_proto" `
             --distpath "$OUTPUT_DIR" \
             --name "$PYINSTALLER_NAME" \
             "$PYTHON_MAIN_FILE"
