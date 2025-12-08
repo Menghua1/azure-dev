@@ -430,6 +430,10 @@ func createBicepProvider(t *testing.T, mockContext *mocks.MockContext) *BicepPro
 		),
 		cloud.AzurePublic(),
 		nil,
+		mockaccount.SubscriptionCredentialProviderFunc(
+			func(_ context.Context, _ string) (azcore.TokenCredential, error) {
+				return mockContext.Credentials, nil
+			}),
 	)
 
 	err = provider.Initialize(*mockContext.Context, projectDir, options)
@@ -1024,6 +1028,10 @@ func TestUserDefinedTypes(t *testing.T) {
 		),
 		cloud.AzurePublic(),
 		nil,
+		mockaccount.SubscriptionCredentialProviderFunc(
+			func(_ context.Context, _ string) (azcore.TokenCredential, error) {
+				return mockContext.Credentials, nil
+			}),
 	)
 	bicepProvider, gooCast := provider.(*BicepProvider)
 	require.True(t, gooCast)

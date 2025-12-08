@@ -13,6 +13,7 @@ type Application struct {
 	Description                *string                          `json:"description"`
 	PasswordCredentials        []*ApplicationPasswordCredential `json:"passwordCredentials"`
 	ServiceManagementReference *string                          `json:"serviceManagementReference"`
+	Tags                       []string                         `json:"tags"`
 }
 
 type ApplicationCreateRequest struct {

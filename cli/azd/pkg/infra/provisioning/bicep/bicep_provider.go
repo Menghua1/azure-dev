@@ -32,6 +32,7 @@ import (
 	"github.com/azure/azure-dev/cli/azd/pkg/config"
 	"github.com/azure/azure-dev/cli/azd/pkg/convert"
 	"github.com/azure/azure-dev/cli/azd/pkg/environment"
+	"github.com/azure/azure-dev/cli/azd/pkg/graphsdk"
 	"github.com/azure/azure-dev/cli/azd/pkg/infra"
 	"github.com/azure/azure-dev/cli/azd/pkg/infra/provisioning"
 	"github.com/azure/azure-dev/cli/azd/pkg/input"
@@ -74,6 +75,7 @@ type BicepProvider struct {
 	portalUrlBase       string
 	keyvaultService     keyvault.KeyVaultService
 	subscriptionManager *account.SubscriptionsManager
+	credentialProvider  account.SubscriptionCredentialProvider
 
 	// Internal state
 	// compileBicepResult is cached to avoid recompiling the same bicep file multiple times in the same azd run.
@@ -952,6 +954,12 @@ func (p *BicepProvider) Destroy(
 		return nil, fmt.Errorf("purging resources: %w", err)
 	}
 
+	// Delete app registrations and service principals tagged with this environment
+	if err := p.deleteAppRegistrations(ctx); err != nil {
+		// Log the error but don't fail the entire destroy operation
+		log.Printf("Warning: error during app registration cleanup: %v", err)
+	}
+
 	destroyResult := &provisioning.DestroyResult{
 		InvalidatedEnvKeys: slices.Collect(maps.Keys(provisioning.OutputParametersFromArmOutputs(
 			compileResult.Template.Outputs,
@@ -1164,6 +1172,80 @@ func itemsCountAsText(items []itemToPurge) string {
 	}
 
 	return ux.ListAsText(tokens)
+}
+
+// deleteAppRegistrations deletes app registrations and service principals tagged with the environment name
+func (p *BicepProvider) deleteAppRegistrations(ctx context.Context) error {
+	// Get credentials for the subscription
+	credential, err := p.credentialProvider.CredentialForSubscription(
+		ctx,
+		p.env.GetSubscriptionId(),
+	)
+	if err != nil {
+		// If we can't get credentials, log a warning and continue
+		// This is not a critical error as the main infrastructure has already been deleted
+		log.Printf("Warning: failed to get credentials for app registration cleanup: %v", err)
+		return nil
+	}
+
+	graphClient, err := graphsdk.NewGraphClient(credential, nil)
+	if err != nil {
+		log.Printf("Warning: failed to create Graph client for app registration cleanup: %v", err)
+		return nil
+	}
+
+	// Create app registration service
+	appRegService := graphsdk.NewAppRegistrationService(graphClient)
+
+	// Find app registrations and service principals tagged with this environment
+	envName := p.env.Name()
+	log.Printf("Searching for app registrations with tag azd-env-name:%s", envName)
+
+	applications, servicePrincipals, err := appRegService.FindByEnvName(ctx, envName)
+	if err != nil {
+		log.Printf("Warning: failed to find app registrations: %v", err)
+		return nil
+	}
+
+	if len(applications) == 0 && len(servicePrincipals) == 0 {
+		log.Printf("No app registrations found with tag azd-env-name:%s", envName)
+		return nil
+	}
+
+	p.console.Message(ctx, fmt.Sprintf("Found %d app registration(s) and %d service principal(s) to delete",
+		len(applications), len(servicePrincipals)))
+
+	// Delete service principals first
+	for _, sp := range servicePrincipals {
+		if err := appRegService.DeleteServicePrincipal(ctx, sp); err != nil {
+			p.console.Message(ctx, fmt.Sprintf("Warning: failed to delete service principal %s: %v",
+				*sp.Id, err))
+			// Continue with other deletions
+		} else {
+			p.console.MessageUxItem(ctx, &ux.DisplayedResource{
+				Type:  "Service Principal",
+				Name:  sp.DisplayName,
+				State: ux.SucceededState,
+			})
+		}
+	}
+
+	// Delete applications
+	for _, app := range applications {
+		if err := appRegService.DeleteApplication(ctx, app); err != nil {
+			p.console.Message(ctx, fmt.Sprintf("Warning: failed to delete application %s: %v",
+				*app.Id, err))
+			// Continue with other deletions
+		} else {
+			p.console.MessageUxItem(ctx, &ux.DisplayedResource{
+				Type:  "Application",
+				Name:  app.DisplayName,
+				State: ux.SucceededState,
+			})
+		}
+	}
+
+	return nil
 }
 
 func (p *BicepProvider) purgeItems(
@@ -2252,6 +2334,7 @@ func NewBicepProvider(
 	keyvaultService keyvault.KeyVaultService,
 	cloud *cloud.Cloud,
 	subscriptionManager *account.SubscriptionsManager,
+	credentialProvider account.SubscriptionCredentialProvider,
 ) provisioning.Provider {
 	return &BicepProvider{
 		envManager:          envManager,
@@ -2266,6 +2349,7 @@ func NewBicepProvider(
 		keyvaultService:     keyvaultService,
 		portalUrlBase:       cloud.PortalUrlBase,
 		subscriptionManager: subscriptionManager,
+		credentialProvider:  credentialProvider,
 	}
 }
 

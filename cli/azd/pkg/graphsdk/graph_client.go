@@ -54,3 +54,9 @@ func (c *GraphClient) ServicePrincipals() *ServicePrincipalListRequestBuilder {
 func (c *GraphClient) ServicePrincipalById(id string) *ServicePrincipalItemRequestBuilder {
 	return NewServicePrincipalItemRequestBuilder(c, id)
 }
+
+// Directory Deleted Items
+
+func (c *GraphClient) DirectoryDeletedItems() *DirectoryDeletedItemsRequestBuilder {
+	return NewDirectoryDeletedItemsRequestBuilder(c)
+}
