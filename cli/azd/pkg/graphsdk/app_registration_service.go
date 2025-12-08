@@ -13,6 +13,12 @@ import (
 	"github.com/azure/azure-dev/cli/azd/pkg/azure"
 )
 
+const (
+	// Retry configuration for waiting for service principals to appear in deleted items
+	maxDeleteRetries = 6
+	deleteRetryDelay = 5 * time.Second
+)
+
 // AppRegistrationService provides methods to manage App Registrations and Service Principals
 type AppRegistrationService struct {
 	client *GraphClient
@@ -65,19 +71,16 @@ func (s *AppRegistrationService) DeleteServicePrincipal(ctx context.Context, sp 
 
 	// Step 2: Wait for the service principal to appear in deleted items
 	// We'll retry for up to 30 seconds
-	maxRetries := 6
-	retryDelay := 5 * time.Second
-
 	var deletedItemFound bool
-	for i := 0; i < maxRetries; i++ {
-		log.Printf("Verifying service principal %s is in deleted items (attempt %d/%d)...", spId, i+1, maxRetries)
+	for i := 0; i < maxDeleteRetries; i++ {
+		log.Printf("Verifying service principal %s is in deleted items (attempt %d/%d)...", spId, i+1, maxDeleteRetries)
 		err = s.client.DirectoryDeletedItems().Get(ctx, spId)
 		if err == nil {
 			deletedItemFound = true
 			break
 		}
-		if i < maxRetries-1 {
-			time.Sleep(retryDelay)
+		if i < maxDeleteRetries-1 {
+			time.Sleep(deleteRetryDelay)
 		}
 	}
 
@@ -103,7 +106,11 @@ func (s *AppRegistrationService) DeleteApplication(ctx context.Context, app Appl
 	}
 
 	appId := *app.Id
-	log.Printf("Deleting application %s (AppId: %s, DisplayName: %s)", appId, *app.AppId, app.DisplayName)
+	appIdStr := "<unknown>"
+	if app.AppId != nil {
+		appIdStr = *app.AppId
+	}
+	log.Printf("Deleting application %s (AppId: %s, DisplayName: %s)", appId, appIdStr, app.DisplayName)
 
 	err := s.client.ApplicationById(appId).Delete(ctx)
 	if err != nil {

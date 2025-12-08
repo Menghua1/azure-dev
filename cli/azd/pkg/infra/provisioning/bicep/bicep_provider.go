@@ -1188,6 +1188,7 @@ func (p *BicepProvider) deleteAppRegistrations(ctx context.Context) error {
 		return nil
 	}
 
+	// Create Graph client with default options (nil = use defaults)
 	graphClient, err := graphsdk.NewGraphClient(credential, nil)
 	if err != nil {
 		log.Printf("Warning: failed to create Graph client for app registration cleanup: %v", err)
