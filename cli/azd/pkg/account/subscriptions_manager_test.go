@@ -242,3 +242,67 @@ func toExpectedSubscriptions(armTenantSubs map[string][]*armsubscriptions.Subscr
 
 	return results
 }
+
+// TestListSubscriptions_UsesOrganizationsTenantForDiscovery verifies that when listing subscriptions,
+// the system uses the "organizations" multi-tenant endpoint to discover all tenants,
+// rather than being limited to the user's home tenant.
+func TestListSubscriptions_UsesOrganizationsTenantForDiscovery(t *testing.T) {
+	ctx := context.Background()
+	mockHttp := mockhttp.NewMockHttpUtil()
+
+	// Mock the ListTenants endpoint to require "organizations" bearer token
+	tenants := generateTenants(2)
+	mockHttp.When(func(request *http.Request) bool {
+		return mockarmresources.IsListTenants(request) && mockhttp.HasBearerToken(request, "organizations")
+	}).RespondFn(func(request *http.Request) (*http.Response, error) {
+		res := armsubscriptions.TenantsClientListResponse{
+			TenantListResult: armsubscriptions.TenantListResult{
+				Value: tenants,
+			},
+		}
+		jsonBytes, _ := json.Marshal(res)
+		return &http.Response{
+			Request:    request,
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+			Body:       io.NopCloser(bytes.NewBuffer(jsonBytes)),
+		}, nil
+	})
+
+	// Mock subscriptions for each tenant
+	subscriptions := generateSubscriptionsForTenants(1, 2)
+	for tenant, subs := range subscriptions {
+		tenantID := tenant
+		whenTenantRequest := mockHttp.When(func(request *http.Request) bool {
+			return mockarmresources.IsListSubscriptions(request) && mockhttp.HasBearerToken(request, tenantID)
+		})
+		whenTenantRequest.RespondFn(func(request *http.Request) (*http.Response, error) {
+			res := armsubscriptions.ClientListResponse{
+				SubscriptionListResult: armsubscriptions.SubscriptionListResult{
+					Value: subs,
+				},
+			}
+			jsonBytes, _ := json.Marshal(res)
+			return &http.Response{
+				Request:    request,
+				StatusCode: http.StatusOK,
+				Header:     http.Header{},
+				Body:       io.NopCloser(bytes.NewBuffer(jsonBytes)),
+			}, nil
+		})
+	}
+
+	subManager := &SubscriptionsManager{
+		service: NewSubscriptionsService(
+			&mocks.MockMultiTenantCredentialProvider{},
+			armClientOptions(mockHttp),
+		),
+		cache:         NewBypassSubscriptionsCache(),
+		principalInfo: &principalInfoProviderMock{},
+		console:       mockinput.NewMockConsole(),
+	}
+
+	got, err := subManager.ListSubscriptions(ctx)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+}

@@ -47,8 +47,10 @@ func (ss *SubscriptionsService) createSubscriptionsClient(
 }
 
 func (ss *SubscriptionsService) createTenantsClient(ctx context.Context) (*armsubscriptions.TenantsClient, error) {
-	// Use default home tenant, since tenants itself can be listed across tenants
-	cred, err := ss.credentialProvider.GetTokenCredential(ctx, "")
+	// Use "organizations" endpoint to ensure we can discover all tenants the user has access to.
+	// This is important for users who have access to multiple tenants - using an empty tenant ID
+	// would default to the home tenant only, potentially missing subscriptions in other tenants.
+	cred, err := ss.credentialProvider.GetTokenCredential(ctx, "organizations")
 	if err != nil {
 		return nil, err
 	}
